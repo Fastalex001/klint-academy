@@ -115,7 +115,7 @@ const COLLABORATEURS = [
 
 // ── MSAL ────────────────────────────────────────────────────────────
 const msalApp = new msal.PublicClientApplication({
-  auth: { clientId:CONFIG.clientId, authority:`https://login.microsoftonline.com/${CONFIG.tenantId}`, redirectUri:window.location.href.split('?')[0].split('#')[0] },
+  auth: { clientId:CONFIG.clientId, authority:`https://login.microsoftonline.com/${CONFIG.tenantId}`, redirectUri:'https://fastalex001.github.io/klint-academy/' },
   cache: { cacheLocation:'sessionStorage' }
 });
 const SCOPES = ['User.Read','https://graph.microsoft.com/Sites.ReadWrite.All'];
