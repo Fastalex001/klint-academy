@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Migration Suivi — Klint Academy</title>
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.10.0/lib/msal-browser.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/raleway@5.0.8/400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/raleway@5.0.8/700.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Raleway','Trebuchet MS',sans-serif;background:#F0F4F8;color:#1A202C;font-size:14px;padding:32px}
+    .card{background:#fff;border-radius:12px;padding:32px;max-width:700px;margin:0 auto;box-shadow:0 4px 24px rgba(27,58,107,.1)}
+    h1{font-size:20px;font-weight:700;color:#1B3A6B;margin-bottom:6px}
+    .sub{font-size:13px;color:#64748B;margin-bottom:24px}
+    .btn{background:#1B3A6B;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s;display:inline-flex;align-items:center;gap:8px}
+    .btn:hover{background:#0D2347}
+    .btn:disabled{background:#94A3B8;cursor:not-allowed}
+    .btn-danger{background:#DC2626}.btn-danger:hover{background:#B91C1C}
+    .progress-bar-wrap{background:#F1F5F9;border-radius:20px;height:10px;overflow:hidden;margin:16px 0}
+    .progress-bar{height:100%;border-radius:20px;background:#00B4D8;transition:width .3s}
+    .log{background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;padding:16px;margin-top:16px;max-height:300px;overflow-y:auto;font-size:12px;font-family:monospace}
+    .log-item{padding:3px 0;border-bottom:1px solid #F1F5F9}
+    .log-item.ok{color:#166534}.log-item.err{color:#DC2626}.log-item.info{color:#1B3A6B}
+    .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:20px 0}
+    .stat{background:#F8FAFC;border-radius:8px;padding:14px;text-align:center;border:1px solid #E2E8F0}
+    .stat-val{font-size:24px;font-weight:700;color:#1B3A6B}
+    .stat-lbl{font-size:11px;color:#64748B;margin-top:2px}
+    .warning{background:#FFF8EC;border:1px solid #F5A623;border-radius:8px;padding:14px 18px;font-size:12px;color:#8A5A00;margin-bottom:20px}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <span style="background:#1B3A6B;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px">KLINT</span>
+    <h1>Migration — Suivi Programme Anthropic Academy</h1>
+  </div>
+  <div class="sub">Importe les données de l'Excel de suivi dans la liste SharePoint <strong>SuiviFormation</strong>. À utiliser une seule fois.</div>
+
+  <div class="warning">
+    ⚠️ Ce script crée une entrée par collaborateur. Si une entrée existe déjà (ex: Alexandre), elle sera ignorée pour éviter les doublons.
+  </div>
+
+  <div id="login-section">
+    <button class="btn" onclick="doLogin()">
+      <svg width="16" height="16" viewBox="0 0 21 21" fill="none"><rect width="10" height="10" fill="#F35325"/><rect x="11" width="10" height="10" fill="#81BC06"/><rect y="11" width="10" height="10" fill="#05A6F0"/><rect x="11" y="11" width="10" height="10" fill="#FFBA08"/></svg>
+      Se connecter avec Microsoft
+    </button>
+  </div>
+
+  <div id="import-section" style="display:none">
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="s-total">19</div><div class="stat-lbl">collaborateurs à importer</div></div>
+      <div class="stat"><div class="stat-val" id="s-done" style="color:#166534">0</div><div class="stat-lbl">importés</div></div>
+      <div class="stat"><div class="stat-val" id="s-err" style="color:#DC2626">0</div><div class="stat-lbl">erreurs</div></div>
+    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="prog" style="width:0%"></div></div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn" id="btn-import" onclick="runImport()">🚀 Lancer l'import</button>
+      <button class="btn btn-danger" id="btn-reset" onclick="resetList()" style="display:none">🗑️ Tout supprimer et recommencer</button>
+    </div>
+    <div class="log" id="log" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+const CONFIG = {
+  clientId:     '070658db-eaf6-4c93-8400-e4c0511ad6b8',
+  tenantId:     '461b98dc-74be-4895-bb07-cbfb07f6632a',
+  siteHostname: 'efrontech365.sharepoint.com',
+  sitePath:     '/sites/AnthropicAcademy',
+  listName:     'SuiviFormation'
+};
+
+// ── Données à importer ──────────────────────────────────────────────
+const COLLABORATEURS = [
+  { name:'Zakia Benyettou',       email:'zbenyettou@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'Certifié',c3:'Certifié',c4:'Certifié',c5:'Certifié',c6:'À faire',c7:'Certifié',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Alexandre Boussemart',  email:'aboussemart@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'Certifié',c3:'Certifié',c4:'Certifié',c5:'Certifié',c6:'Terminé',c7:'Certifié',c8:'Terminé',c9:'Certifié',c10:'Certifié',c11:'Terminé'} },
+  { name:'Sandrine Beaudelin',    email:'sbeaudelin@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'À faire',c3:'À faire',c4:'Certifié',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Yoan Bisogno',          email:'ybisogno@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'Certifié',c3:'Certifié',c4:'Certifié',c5:'Certifié',c6:'À faire',c7:'Certifié',c8:'Terminé',c9:'Certifié',c10:'À faire',c11:'Terminé'} },
+  { name:'Matthieu Vigoureux',    email:'mvigoureux@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'Certifié',c3:'Certifié',c4:'Certifié',c5:'Certifié',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Florent Ribaut',        email:'fribaut@klint-consulting.com',
+    courses:{c1:'À faire',c2:'À faire',c3:'À faire',c4:'À faire',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Chaharzade Moussa',     email:'cmoussa@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'Certifié',c3:'Certifié',c4:'Certifié',c5:'Certifié',c6:'À faire',c7:'Certifié',c8:'Terminé',c9:'En cours',c10:'À faire',c11:'Terminé'} },
+  { name:'Louis Pigelet',         email:'lpigelet@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'À faire',c3:'À faire',c4:'À faire',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Charles Blivet',        email:'cblivet@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'Certifié',c3:'Certifié',c4:'À faire',c5:'Certifié',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Dany Perenchio',        email:'dperenchio@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'À faire',c3:'À faire',c4:'À faire',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Annabelle Fabregal',    email:'afabregal@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'Certifié',c3:'À faire',c4:'À faire',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Guillaume Decaen',      email:'gdecaen@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'Certifié',c3:'Certifié',c4:'À faire',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Robin Lerda',           email:'rlerda@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'À faire',c3:'Certifié',c4:'À faire',c5:'Certifié',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Alix Trihan',           email:'atrihan@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'À faire',c3:'À faire',c4:'À faire',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Nesrine Jendoubi',      email:'njendoubi@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'À faire',c3:'Certifié',c4:'À faire',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Stéphane Durand',       email:'sdurand@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'À faire',c3:'À faire',c4:'En cours',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Guillaume Jolly',       email:'gjolly@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'À faire',c3:'À faire',c4:'À faire',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Chaima Guellim',        email:'cguellim@klint-consulting.com',
+    courses:{c1:'Certifié',c2:'À faire',c3:'Certifié',c4:'En cours',c5:'Certifié',c6:'À faire',c7:'Certifié',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+  { name:'Chanez Zergane',        email:'czergane@klint-consulting.com',
+    courses:{c1:'En cours',c2:'À faire',c3:'À faire',c4:'À faire',c5:'À faire',c6:'À faire',c7:'À faire',c8:'À faire',c9:'À faire',c10:'À faire',c11:'À faire'} },
+];
+
+// ── MSAL ────────────────────────────────────────────────────────────
+const msalApp = new msal.PublicClientApplication({
+  auth: { clientId:CONFIG.clientId, authority:`https://login.microsoftonline.com/${CONFIG.tenantId}`, redirectUri:window.location.href.split('?')[0].split('#')[0] },
+  cache: { cacheLocation:'sessionStorage' }
+});
+const SCOPES = ['User.Read','https://graph.microsoft.com/Sites.ReadWrite.All'];
+let account = null;
+
+async function doLogin() {
+  await msalApp.initialize();
+  const r = await msalApp.loginPopup({scopes:SCOPES});
+  account = r.account;
+  document.getElementById('login-section').style.display='none';
+  document.getElementById('import-section').style.display='block';
+  log('info', `✓ Connecté en tant que ${account.name}`);
+}
+async function getToken() {
+  try { return (await msalApp.acquireTokenSilent({scopes:SCOPES,account})).accessToken; }
+  catch { return (await msalApp.acquireTokenPopup({scopes:SCOPES})).accessToken; }
+}
+async function graph(endpoint, method='GET', body=null) {
+  const token = await getToken();
+  const r = await fetch(`https://graph.microsoft.com/v1.0${endpoint}`, {
+    method, headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Prefer':'return=representation'},
+    body: body ? JSON.stringify(body) : null
+  });
+  if (!r.ok) { const e=await r.json().catch(()=>{}); throw new Error(e?.error?.message||r.statusText); }
+  return method==='DELETE' ? null : r.json().catch(()=>null);
+}
+
+// ── Import ───────────────────────────────────────────────────────────
+function log(type, msg) {
+  const logEl = document.getElementById('log');
+  logEl.style.display='block';
+  const div = document.createElement('div');
+  div.className=`log-item ${type}`;
+  div.textContent=`[${new Date().toLocaleTimeString('fr-FR')}] ${msg}`;
+  logEl.appendChild(div);
+  logEl.scrollTop=logEl.scrollHeight;
+}
+function updateStats(done, errors) {
+  document.getElementById('s-done').textContent=done;
+  document.getElementById('s-err').textContent=errors;
+  document.getElementById('prog').style.width=Math.round((done+errors)/COLLABORATEURS.length*100)+'%';
+}
+
+async function runImport() {
+  const btn = document.getElementById('btn-import');
+  btn.disabled=true; btn.textContent='⏳ Import en cours…';
+  log('info','━━━ Démarrage de l\'import ━━━');
+
+  let siteId, listId;
+  try {
+    siteId = (await graph(`/sites/${CONFIG.siteHostname}:${CONFIG.sitePath}`)).id;
+    log('info',`✓ Site SharePoint trouvé`);
+    const lists = await graph(`/sites/${siteId}/lists?$filter=displayName eq '${CONFIG.listName}'&$select=id`);
+    if(!lists.value||lists.value.length===0) throw new Error(`Liste "${CONFIG.listName}" introuvable`);
+    listId = lists.value[0].id;
+    log('info',`✓ Liste "${CONFIG.listName}" trouvée`);
+  } catch(e) {
+    log('err','✗ Erreur connexion SharePoint : '+e.message);
+    btn.disabled=false; btn.textContent='🚀 Relancer l\'import';
+    return;
+  }
+
+  let done=0, errors=0;
+  for (const collab of COLLABORATEURS) {
+    try {
+      // Vérifie si l'entrée existe déjà
+      const existing = await graph(`/sites/${siteId}/lists/${listId}/items?$filter=fields/UserEmail eq '${encodeURIComponent(collab.email)}'&$select=id&$top=1`);
+      if (existing.value && existing.value.length > 0) {
+        log('info',`⏭ ${collab.name} — déjà présent, ignoré`);
+        done++;
+      } else {
+        await graph(`/sites/${siteId}/lists/${listId}/items`, 'POST', {
+          fields: {
+            Title:       collab.email,
+            UserEmail:   collab.email,
+            UserName:    collab.name,
+            CourseData:  JSON.stringify(collab.courses),
+            UseCase:     ''
+          }
+        });
+        log('ok',`✓ ${collab.name} importé`);
+        done++;
+      }
+    } catch(e) {
+      log('err',`✗ ${collab.name} — erreur : ${e.message}`);
+      errors++;
+    }
+    updateStats(done, errors);
+    await new Promise(r=>setTimeout(r,300)); // pause pour éviter le rate limiting
+  }
+
+  log('info',`━━━ Import terminé : ${done} importés, ${errors} erreurs ━━━`);
+  btn.textContent=`✅ Import terminé (${done}/${COLLABORATEURS.length})`;
+  if(errors>0) document.getElementById('btn-reset').style.display='inline-flex';
+}
+
+async function resetList() {
+  if(!confirm('Supprimer tous les éléments de la liste SuiviFormation ? Cette action est irréversible.')) return;
+  const btn=document.getElementById('btn-reset');
+  btn.disabled=true; btn.textContent='⏳ Suppression…';
+  log('info','━━━ Suppression de tous les éléments ━━━');
+  try {
+    const siteId=(await graph(`/sites/${CONFIG.siteHostname}:${CONFIG.sitePath}`)).id;
+    const lists=await graph(`/sites/${siteId}/lists?$filter=displayName eq '${CONFIG.listName}'&$select=id`);
+    const listId=lists.value[0].id;
+    const items=await graph(`/sites/${siteId}/lists/${listId}/items?$select=id&$top=999`);
+    for(const item of items.value||[]) {
+      await graph(`/sites/${siteId}/lists/${listId}/items/${item.id}`,'DELETE');
+      log('info',`Supprimé item ${item.id}`);
+    }
+    log('ok','✓ Liste vidée. Tu peux relancer l\'import.');
+    btn.style.display='none';
+    document.getElementById('btn-import').disabled=false;
+    document.getElementById('btn-import').textContent='🚀 Lancer l\'import';
+    updateStats(0,0);
+  } catch(e) { log('err','✗ '+e.message); }
+  btn.disabled=false;
+}
+
+window.onload=async()=>{
+  await msalApp.initialize();
+  const accounts=msalApp.getAllAccounts();
+  if(accounts.length>0){account=accounts[0];document.getElementById('login-section').style.display='none';document.getElementById('import-section').style.display='block';}
+};
+</script>
+</body>
+</html>
