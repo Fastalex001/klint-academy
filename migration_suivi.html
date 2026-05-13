@@ -181,13 +181,7 @@ async function runImport() {
   let done=0, errors=0;
   for (const collab of COLLABORATEURS) {
     try {
-      // Vérifie si l'entrée existe déjà (filtre sur Title qui est indexé)
-      const existing = await graph(`/sites/${siteId}/lists/${listId}/items?$filter=fields/Title eq '${encodeURIComponent(collab.email)}'&$select=id&$top=1`);
-      if (existing.value && existing.value.length > 0) {
-        log('info',`⏭ ${collab.name} — déjà présent, ignoré`);
-        done++;
-      } else {
-        await graph(`/sites/${siteId}/lists/${listId}/items`, 'POST', {
+      await graph(`/sites/${siteId}/lists/${listId}/items`, 'POST', {
           fields: {
             Title:       collab.email,
             UserEmail:   collab.email,
@@ -198,7 +192,6 @@ async function runImport() {
         });
         log('ok',`✓ ${collab.name} importé`);
         done++;
-      }
     } catch(e) {
       log('err',`✗ ${collab.name} — erreur : ${e.message}`);
       errors++;
