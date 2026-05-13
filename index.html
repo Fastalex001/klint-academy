@@ -379,9 +379,14 @@ async function getListId(){
   throw new Error(`Liste "${CONFIG.listName}" introuvable. Créez-la d'abord dans SharePoint.`);
 }
 async function loadMyData(){
-  const email=state.user.mail||state.user.userPrincipalName;
-  const items=await graph(`/sites/${state.siteId}/lists/${state.listId}/items?$expand=fields&$filter=fields/UserEmail eq '${encodeURIComponent(email)}'&$top=1`);
-  if(items.value&&items.value.length>0){const f=items.value[0].fields;state.myItemId=items.value[0].id;try{state.courseData=JSON.parse(f.CourseData||'{}');}catch{state.courseData={};}state.useCase=f.UseCase||'';}
+  const email=(state.user.mail||state.user.userPrincipalName).toLowerCase();
+  // Récupère tout (19 lignes max) et filtre côté JS — évite les problèmes d'indexation SharePoint
+  const items=await graph(`/sites/${state.siteId}/lists/${state.listId}/items?$expand=fields&$top=999`);
+  const myItem=(items.value||[]).find(item=>
+    (item.fields.UserEmail||'').toLowerCase()===email ||
+    (item.fields.Title||'').toLowerCase()===email
+  );
+  if(myItem){state.myItemId=myItem.id;try{state.courseData=JSON.parse(myItem.fields.CourseData||'{}');}catch{state.courseData={};}state.useCase=myItem.fields.UseCase||'';}
 }
 async function saveMyData(){
   const email=state.user.mail||state.user.userPrincipalName;
