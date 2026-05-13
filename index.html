@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programme Anthropic Academy — Klint</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/raleway@5.0.8/400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/raleway@5.0.8/600.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/raleway@5.0.8/700.css">
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.10.0/lib/msal-browser.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Raleway','Trebuchet MS',sans-serif;background:#F0F4F8;color:#1A202C;font-size:14px;line-height:1.6}
+    /* SETUP OVERLAY */
+    #setup-overlay{position:fixed;inset:0;background:rgba(27,58,107,.92);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px}
+    .setup-box{background:#fff;border-radius:16px;padding:36px;max-width:600px;width:100%}
+    .setup-box h2{font-size:20px;font-weight:700;color:#1B3A6B;margin-bottom:8px}
+    .setup-box p{font-size:12px;color:#64748B;margin-bottom:20px}
+    .setup-step{background:#F8FAFC;border-radius:8px;padding:16px;margin-bottom:12px;border-left:4px solid #00B4D8}
+    .setup-step h4{font-size:12px;font-weight:700;color:#1B3A6B;margin-bottom:6px}
+    .setup-step p,.setup-step li{font-size:11px;color:#64748B;line-height:1.7}
+    .setup-step ol{padding-left:16px}
+    .setup-step code{background:#E8F0F8;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:11px;color:#1B3A6B}
+    /* LOGIN */
+    #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F0F4F8}
+    .login-card{background:#fff;border-radius:16px;padding:48px 40px;max-width:400px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(27,58,107,.12)}
+    .login-logo{background:#1B3A6B;color:#fff;font-size:13px;font-weight:700;padding:6px 14px;border-radius:6px;display:inline-block;margin-bottom:20px;letter-spacing:.5px}
+    .login-card h1{font-size:20px;font-weight:700;color:#1B3A6B;margin-bottom:8px}
+    .login-card p{font-size:12px;color:#64748B;margin-bottom:28px}
+    .btn-ms{background:#1B3A6B;color:#fff;border:none;padding:13px 28px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;width:100%;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:10px}
+    .btn-ms:hover{background:#0D2347}
+    .ms-icon{width:18px;height:18px}
+    /* APP */
+    #app{display:none}
+    .hdr{background:#1B3A6B;padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+    .hdr-left{display:flex;align-items:center;gap:10px}
+    .hdr-badge{background:#00B4D8;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;letter-spacing:.5px}
+    .hdr-right{display:flex;align-items:center;gap:12px}
+    .user-chip{background:rgba(255,255,255,.1);color:#8FBCD4;font-size:12px;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px}
+    .user-avatar{width:22px;height:22px;border-radius:50%;background:#00B4D8;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+    .btn-logout{background:transparent;border:1px solid rgba(255,255,255,.2);color:#8FBCD4;font-family:inherit;font-size:11px;padding:5px 12px;border-radius:20px;cursor:pointer;transition:all .2s}
+    .btn-logout:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nav{background:#fff;border-bottom:1px solid #E2E8F0;display:flex;padding:0 20px;overflow-x:auto;position:sticky;top:56px;z-index:99}
+    .nav-btn{padding:14px 16px;border:none;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:#64748B;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+    .nav-btn:hover{color:#1B3A6B}
+    .nav-btn.active{color:#1B3A6B;border-bottom-color:#00B4D8}
+    .nav-btn.manager-only{display:none}
+    /* SECTIONS */
+    .section{display:none;padding:28px 24px;max-width:960px;margin:0 auto}
+    .section.active{display:block}
+    .section-title{font-size:17px;font-weight:700;color:#1B3A6B;margin-bottom:4px}
+    .section-sub{font-size:12px;color:#64748B;margin-bottom:20px}
+    /* HERO */
+    .hero{background:#1B3A6B;border-radius:12px;padding:34px;color:#fff;margin-bottom:24px}
+    .hero-label{background:#00B4D8;color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:12px;letter-spacing:1px}
+    .hero h1{font-size:22px;font-weight:700;margin-bottom:8px}
+    .hero p{color:#8FBCD4;font-size:13px;max-width:520px}
+    .hero-stats{display:flex;gap:32px;margin-top:22px}
+    .hero-stat-val{font-size:26px;font-weight:700;color:#F5A623}
+    .hero-stat-lbl{font-size:11px;color:#8FBCD4;margin-top:2px}
+    .axes{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+    .axe-card{background:#fff;border-radius:10px;padding:22px;border:1px solid #E2E8F0;border-top:4px solid var(--ac)}
+    .axe-card.axe1{--ac:#00B4D8}.axe-card.axe2{--ac:#F5A623}
+    .axe-num{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--ac);margin-bottom:6px}
+    .axe-title{font-size:15px;font-weight:700;color:#1B3A6B;margin-bottom:6px}
+    .axe-desc{font-size:12px;color:#64748B;line-height:1.7}
+    .axe-target{margin-top:12px;font-size:11px;color:#94A3B8;border-top:1px solid #F1F5F9;padding-top:10px}
+    .axe-target strong{color:#1B3A6B}
+    /* CATALOGUE */
+    .axe-label{display:flex;align-items:center;gap:8px;margin:20px 0 12px;font-size:11px;font-weight:700;letter-spacing:1px;color:#64748B;text-transform:uppercase}
+    .axe-label::after{content:'';flex:1;height:1px;background:#E2E8F0}
+    .axe-label span{background:#1B3A6B;color:#fff;padding:3px 10px;border-radius:20px;font-size:10px}
+    .axe-label.a2 span{background:#F5A623;color:#1B3A6B}
+    .courses{display:flex;flex-direction:column;gap:8px}
+    .course-card{background:#fff;border-radius:8px;padding:12px 16px;border:1px solid #E2E8F0;display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center;transition:box-shadow .2s}
+    .course-card:hover{box-shadow:0 2px 12px rgba(27,58,107,.1)}
+    .course-icon{width:36px;height:36px;border-radius:8px;background:#EEF4FB;display:flex;align-items:center;justify-content:center;font-size:18px}
+    .course-name{font-size:13px;font-weight:700;color:#1B3A6B;margin-bottom:2px}
+    .course-desc{font-size:11px;color:#64748B}
+    .course-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+    .badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+    .bc{background:#E0F7FD;color:#0077A8}.by{background:#FFF3DC;color:#8A5A00}
+    .bn{background:#EEF4FB;color:#1B3A6B}.bd{background:#F0FDF4;color:#166534}
+    .dur{font-size:11px;color:#94A3B8}
+    /* PARCOURS */
+    .profiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+    .profile-card{background:#fff;border-radius:10px;padding:18px;border:1px solid #E2E8F0}
+    .profile-icon{font-size:24px;margin-bottom:6px}
+    .profile-name{font-size:13px;font-weight:700;color:#1B3A6B;margin-bottom:6px}
+    .steps{display:flex;flex-direction:column;gap:8px}
+    .step{display:flex;gap:10px;align-items:flex-start}
+    .step-num{width:22px;height:22px;border-radius:50%;background:#1B3A6B;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+    .step-name{font-size:12px;font-weight:700;color:#1B3A6B}
+    .step-dur{font-size:10px;color:#94A3B8}
+    /* CERTIFICATION */
+    .cert-hero{background:#1B3A6B;border-radius:12px;padding:28px;color:#fff;margin-bottom:18px}
+    .cert-badge{background:#F5A623;color:#1B3A6B;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:10px;letter-spacing:1px}
+    .cert-hero h2{font-size:18px;font-weight:700;margin-bottom:6px}
+    .cert-hero p{color:#8FBCD4;font-size:12px}
+    .cert-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+    .cert-stat{background:#fff;border-radius:8px;padding:14px;text-align:center;border:1px solid #E2E8F0}
+    .cert-stat-val{font-size:20px;font-weight:700;color:#1B3A6B;margin-bottom:2px}
+    .cert-stat-lbl{font-size:10px;color:#64748B}
+    .cert-stat.sp{background:#00B4D8;border-color:#00B4D8}
+    .cert-stat.sp .cert-stat-val,.cert-stat.sp .cert-stat-lbl{color:#fff}
+    .cert-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+    .cert-block{background:#fff;border-radius:8px;padding:16px;border:1px solid #E2E8F0;border-left:4px solid var(--ac)}
+    .cert-block.acc{--ac:#00B4D8}.cert-block.acy{--ac:#F5A623}
+    .cert-block h4{font-size:12px;font-weight:700;color:#1B3A6B;margin-bottom:6px}
+    .cert-block p{font-size:11px;color:#64748B;line-height:1.7}
+    .cert-link{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;border-radius:8px;border:1px solid #E2E8F0;margin-bottom:8px;text-decoration:none;color:inherit;transition:border-color .2s}
+    .cert-link:hover{border-color:#00B4D8}
+    .cert-link-dot{width:8px;height:8px;border-radius:50%;background:#00B4D8;flex-shrink:0}
+    .cert-link-label{font-size:12px;font-weight:700;color:#1B3A6B}
+    .cert-link-url{font-size:10px;color:#00B4D8;margin-left:auto}
+    /* MON AVANCEMENT */
+    .progress-header{background:#fff;border-radius:12px;padding:22px;margin-bottom:20px;border:1px solid #E2E8F0;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .prog-bloc h3{font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+    .prog-bar-wrap{background:#F1F5F9;border-radius:20px;height:10px;overflow:hidden;margin-bottom:4px}
+    .prog-bar{height:100%;border-radius:20px;transition:width .5s}
+    .prog-bar.axe1{background:#00B4D8}
+    .prog-bar.axe2{background:#F5A623}
+    .prog-pct{font-size:20px;font-weight:700;color:#1B3A6B}
+    .prog-lbl{font-size:11px;color:#94A3B8}
+    .status-cards{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+    .status-card{background:#fff;border-radius:8px;padding:12px 16px;border:1px solid #E2E8F0;display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center}
+    .status-select{border:1px solid #E2E8F0;border-radius:6px;padding:5px 10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:#F8FAFC;color:#1A202C;outline:none;min-width:120px}
+    .status-select:focus{border-color:#00B4D8}
+    .status-select.s0{background:#F1F5F9;color:#64748B}
+    .status-select.s1{background:#FFF3DC;color:#8A5A00;border-color:#F5A623}
+    .status-select.s2{background:#DCFCE7;color:#166534;border-color:#86EFAC}
+    .status-select.s3{background:#E0F7FD;color:#0077A8;border-color:#00B4D8}
+    .btn-save{background:#1B3A6B;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s;display:flex;align-items:center;gap:8px}
+    .btn-save:hover{background:#0D2347}
+    .btn-save:disabled{background:#94A3B8;cursor:not-allowed}
+    .save-status{font-size:12px;margin-left:12px;color:#64748B}
+    .save-status.ok{color:#166534}
+    .save-status.err{color:#DC2626}
+    /* USECASE */
+    .usecase-block{background:#fff;border-radius:10px;padding:20px;border:1px solid #E2E8F0;margin-top:16px}
+    .usecase-block h3{font-size:13px;font-weight:700;color:#1B3A6B;margin-bottom:6px}
+    .usecase-block p{font-size:11px;color:#64748B;margin-bottom:10px}
+    textarea.usecase-input{width:100%;border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;font-family:inherit;font-size:12px;resize:vertical;min-height:80px;outline:none;line-height:1.6}
+    textarea.usecase-input:focus{border-color:#00B4D8}
+    /* DASHBOARD */
+    .dash-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+    .dash-stat{background:#fff;border-radius:8px;padding:16px;border:1px solid #E2E8F0;text-align:center}
+    .dash-stat-val{font-size:26px;font-weight:700;color:#1B3A6B}
+    .dash-stat-lbl{font-size:11px;color:#64748B;margin-top:2px}
+    .dash-stat.accent .dash-stat-val{color:#00B4D8}
+    .dash-stat.yellow .dash-stat-val{color:#F5A623}
+    .dash-table-wrap{background:#fff;border-radius:10px;border:1px solid #E2E8F0;overflow:hidden}
+    .dash-table-header{padding:16px 20px;border-bottom:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center}
+    .dash-table-header h3{font-size:14px;font-weight:700;color:#1B3A6B}
+    table.dash{width:100%;border-collapse:collapse}
+    table.dash th{text-align:left;font-size:11px;font-weight:700;color:#64748B;padding:10px 16px;background:#F8FAFC;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #E2E8F0}
+    table.dash td{padding:12px 16px;font-size:12px;border-bottom:1px solid #F1F5F9;vertical-align:middle}
+    table.dash tr:last-child td{border-bottom:none}
+    table.dash tr:hover td{background:#F8FAFC}
+    .mini-bar-wrap{background:#F1F5F9;border-radius:10px;height:7px;width:80px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
+    .mini-bar{height:100%;border-radius:10px}
+    .mini-bar.c1{background:#00B4D8}.mini-bar.c2{background:#F5A623}
+    .last-active{font-size:11px;color:#94A3B8}
+    .btn-export{background:#F8FAFC;border:1px solid #E2E8F0;color:#1B3A6B;font-family:inherit;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;transition:all .2s}
+    .btn-export:hover{border-color:#00B4D8;color:#00B4D8}
+    /* LOADING */
+    .loading{text-align:center;padding:60px;color:#94A3B8;font-size:13px}
+    .spinner{width:28px;height:28px;border:3px solid #E2E8F0;border-top-color:#00B4D8;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .footer{text-align:center;padding:20px;font-size:11px;color:#94A3B8;border-top:1px solid #E2E8F0;margin-top:16px}
+  </style>
+</head>
+<body>
+
+<!-- ═══ SETUP GUIDE (shown when CLIENT_ID not configured) ═══ -->
+<div id="setup-overlay" style="display:none">
+  <div class="setup-box">
+    <h2>⚙️ Configuration requise</h2>
+    <p>Avant d'utiliser ce mini-site, tu dois créer une App Registration Azure AD. Cela prend ~5 minutes. Fais-le une seule fois.</p>
+    <div class="setup-step">
+      <h4>Étape 1 — Créer l'App Registration Azure</h4>
+      <ol>
+        <li>Va sur <code>portal.azure.com</code> → Microsoft Entra ID → App registrations → New registration</li>
+        <li>Nom : <code>Klint Academy</code> | Type : Single-page application (SPA)</li>
+        <li>Redirect URI : l'URL de ce fichier HTML (ou <code>http://localhost</code> pour tester)</li>
+        <li>Note le <strong>Application (client) ID</strong> et le <strong>Directory (tenant) ID</strong></li>
+      </ol>
+    </div>
+    <div class="setup-step">
+      <h4>Étape 2 — Accorder les permissions</h4>
+      <ol>
+        <li>Dans l'App Registration → API permissions → Add a permission → Microsoft Graph</li>
+        <li>Delegated : <code>User.Read</code> + <code>Sites.ReadWrite.All</code></li>
+        <li>Cliquer <strong>Grant admin consent</strong></li>
+      </ol>
+    </div>
+    <div class="setup-step">
+      <h4>Étape 3 — Configurer ce fichier</h4>
+      <ol>
+        <li>Ouvre ce fichier HTML dans un éditeur de texte</li>
+        <li>Cherche <code>VOTRE_CLIENT_ID</code> et remplace par ton Application (client) ID</li>
+        <li>Sauvegarde et rouvre le fichier — c'est bon !</li>
+      </ol>
+    </div>
+    <div class="setup-step">
+      <h4>Étape 4 — Créer la liste SharePoint</h4>
+      <ol>
+        <li>Va sur le site SharePoint <code>AnthropicAcademy</code></li>
+        <li>Paramètres → Ajouter une application → Liste personnalisée</li>
+        <li>Nom : <code>SuiviFormation</code> (exactement)</li>
+        <li>La liste sera automatiquement configurée au premier login</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">KLINT</div>
+    <h1>Programme Anthropic Academy</h1>
+    <p>Connecte-toi avec ton compte Klint pour accéder au programme de formation, suivre ta progression et consulter le catalogue.</p>
+    <button class="btn-ms" onclick="login()">
+      <svg class="ms-icon" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="10" height="10" fill="#F35325"/><rect x="11" width="10" height="10" fill="#81BC06"/>
+        <rect y="11" width="10" height="10" fill="#05A6F0"/><rect x="11" y="11" width="10" height="10" fill="#FFBA08"/>
+      </svg>
+      Se connecter avec Microsoft
+    </button>
+    <p style="margin-top:16px;font-size:11px;color:#CBD5E1">Compte @klint-consulting.com requis</p>
+  </div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-left">
+      <span class="hdr-badge">KLINT</span>
+      <span style="color:#fff;font-weight:700;font-size:14px">Programme</span>
+      <span style="color:#8FBCD4;font-size:12px;margin-left:10px">Anthropic Academy</span>
+    </div>
+    <div class="hdr-right">
+      <div class="user-chip">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <span id="user-name">...</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Déconnexion</button>
+    </div>
+  </div>
+
+  <nav class="nav" id="main-nav">
+    <button class="nav-btn active" onclick="show('programme',this)">🏠 Programme</button>
+    <button class="nav-btn" onclick="show('catalogue',this)">📚 Catalogue</button>
+    <button class="nav-btn" onclick="show('parcours',this)">🗺️ Parcours</button>
+    <button class="nav-btn" onclick="show('certification',this)">🎓 Certification</button>
+    <button class="nav-btn" onclick="show('avancement',this)">✅ Mon Avancement</button>
+    <button class="nav-btn manager-only" onclick="show('dashboard',this)">📊 Dashboard</button>
+  </nav>
+
+  <!-- PROGRAMME -->
+  <div id="programme" class="section active">
+    <div class="hero">
+      <div class="hero-label">ANTHROPIC ACADEMY</div>
+      <h1>Nous former à Claude — pour nous et nos clients</h1>
+      <p>Intensifier notre usage de l'IA en interne et préparer Klint aux missions IA. Être parmi les champions pour évangéliser ce programme au sein de Klint.</p>
+      <div class="hero-stats">
+        <div><div class="hero-stat-val">100%</div><div class="hero-stat-lbl">des collaborateurs<br>visés (AXE 1)</div></div>
+        <div><div class="hero-stat-val">10–15</div><div class="hero-stat-lbl">AI Champions<br>cibles (AXE 2)</div></div>
+        <div><div class="hero-stat-val">Auto</div><div class="hero-stat-lbl">rythme libre<br>priorité intercontrats</div></div>
+      </div>
+    </div>
+    <div class="axes">
+      <div class="axe-card axe1">
+        <div class="axe-num">AXE 1 — CONSULTANT AUGMENTÉ</div>
+        <div class="axe-title">Utiliser Claude au quotidien</div>
+        <div class="axe-desc">Former 100% des collaborateurs. Gagner 20 à 40% d'efficacité sur les specs, le code, les CR, le reporting, l'analyse data…</div>
+        <div class="axe-target"><strong>Objectif :</strong> maîtriser les outils IA pour être plus efficace, pas plus occupé.</div>
+      </div>
+      <div class="axe-card axe2">
+        <div class="axe-num">AXE 2 — CONSULTANT IA</div>
+        <div class="axe-title">Devenir expert et certifié</div>
+        <div class="axe-desc">Préparer 10 à 15 AI Champions aux certifications avancées. Crédibiliser nos profils sur les missions IA relation client.</div>
+        <div class="axe-target"><strong>Objectif :</strong> être parmi les premiers consultants Salesforce certifiés Anthropic en France.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CATALOGUE -->
+  <div id="catalogue" class="section">
+    <div class="section-title">Catalogue des cours recommandés</div>
+    <div class="section-sub">11 cours — disponibles sur anthropic.skilljar.com, inscription gratuite avec votre email Klint</div>
+    <div class="axe-label"><span>AXE 1 — Tous les collaborateurs</span></div>
+    <div class="courses">
+      <div class="course-card"><div class="course-icon">🤖</div><div><div class="course-name">Claude 101</div><div class="course-desc">Fonctionnalités core · Workflows quotidiens · Meilleures pratiques</div></div><div class="course-meta"><span class="badge bc">TOUS</span><span class="dur">1–2h</span></div></div>
+      <div class="course-card"><div class="course-icon">🧠</div><div><div class="course-name">AI Fluency: Framework &amp; Foundations</div><div class="course-desc">Cadre 4D · Penser avec l'IA · Éthique &amp; limites · Collaboration efficace</div></div><div class="course-meta"><span class="badge bc">TOUS</span><span class="dur">3h</span></div></div>
+      <div class="course-card"><div class="course-icon">⚡</div><div><div class="course-name">AI Capabilities and Limitations</div><div class="course-desc">Comment fonctionne l'IA · Ce qu'elle sait faire et ne pas faire</div></div><div class="course-meta"><span class="badge bc">TOUS</span><span class="dur">1h</span></div></div>
+      <div class="course-card"><div class="course-icon">💼</div><div><div class="course-name">Introduction to Claude Cowork</div><div class="course-desc">Travailler sur ses vrais fichiers avec Claude · Plugins, skills, workflows</div></div><div class="course-meta"><span class="badge bc">TOUS</span><span class="dur">~2h</span></div></div>
+      <div class="course-card"><div class="course-icon">💻</div><div><div class="course-name">Claude Code 101</div><div class="course-desc">Utiliser Claude Code dans le workflow de développement quotidien</div></div><div class="course-meta"><span class="badge bd">DEVS</span><span class="dur">1h</span></div></div>
+    </div>
+    <div class="axe-label a2"><span>AXE 2 — AI Champions (10–15 personnes)</span></div>
+    <div class="courses">
+      <div class="course-card"><div class="course-icon">🔌</div><div><div class="course-name">Building with the Claude API</div><div class="course-desc">API complète · System prompts · Tool use · Streaming · Patterns archi production</div></div><div class="course-meta"><span class="badge bn">Tech</span><span class="dur">8h+</span></div></div>
+      <div class="course-card"><div class="course-icon">⚙️</div><div><div class="course-name">Claude Code in Action</div><div class="course-desc">Intégration Claude Code dans le vrai workflow dev · Hooks · Contexte</div></div><div class="course-meta"><span class="badge bn">Tech</span><span class="dur">2h</span></div></div>
+      <div class="course-card"><div class="course-icon">🤝</div><div><div class="course-name">Introduction to Subagents</div><div class="course-desc">Créer des sous-agents · Déléguer des tâches · Workflows spécialisés</div></div><div class="course-meta"><span class="badge bn">Tech</span><span class="dur">~1h</span></div></div>
+      <div class="course-card"><div class="course-icon">🔗</div><div><div class="course-name">Introduction to MCP</div><div class="course-desc">Connecter Claude à des outils externes · Serveurs &amp; clients MCP en Python</div></div><div class="course-meta"><span class="badge bn">Tech</span><span class="dur">3h</span></div></div>
+      <div class="course-card"><div class="course-icon">🚀</div><div><div class="course-name">MCP: Advanced Topics</div><div class="course-desc">MCP avancé : sampling, notifications, file system · Production</div></div><div class="course-meta"><span class="badge bn">Tech</span><span class="dur">2h</span></div></div>
+      <div class="course-card"><div class="course-icon">🧩</div><div><div class="course-name">Introduction to Agent Skills</div><div class="course-desc">Skills réutilisables dans Claude Code · Distribution en équipe</div></div><div class="course-meta"><span class="badge by">Fonct.</span><span class="dur">1h</span></div></div>
+    </div>
+  </div>
+
+  <!-- PARCOURS -->
+  <div id="parcours" class="section">
+    <div class="section-title">Parcours recommandés par profil</div>
+    <div class="section-sub">Choisissez votre profil et suivez les étapes dans l'ordre</div>
+    <div class="profiles">
+      <div class="profile-card">
+        <div class="profile-icon">👥</div>
+        <div class="profile-name">Tous les collaborateurs</div>
+        <span class="badge bc" style="margin-bottom:14px;display:inline-block">AXE 1 — ~8h</span>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div><div class="step-name">Claude 101</div><div class="step-dur">1–2h</div></div></div>
+          <div class="step"><div class="step-num">2</div><div><div class="step-name">AI Fluency Framework</div><div class="step-dur">3h</div></div></div>
+          <div class="step"><div class="step-num">3</div><div><div class="step-name">AI Capabilities &amp; Limits</div><div class="step-dur">1h</div></div></div>
+          <div class="step"><div class="step-num">4</div><div><div class="step-name">Claude Cowork</div><div class="step-dur">~2h</div></div></div>
+        </div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-icon">💻</div>
+        <div class="profile-name">Développeurs</div>
+        <span class="badge bd" style="margin-bottom:14px;display:inline-block">AXE 1 → AXE 2</span>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div><div class="step-name">Claude 101 + Code 101</div><div class="step-dur">2h</div></div></div>
+          <div class="step"><div class="step-num">2</div><div><div class="step-name">Claude Code in Action</div><div class="step-dur">2h</div></div></div>
+          <div class="step"><div class="step-num">3</div><div><div class="step-name">API Claude + Subagents</div><div class="step-dur">9h+</div></div></div>
+          <div class="step"><div class="step-num">4</div><div><div class="step-name">MCP Intro + Advanced</div><div class="step-dur">5h</div></div></div>
+        </div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-icon">🏆</div>
+        <div class="profile-name">AI Champions Fonct.</div>
+        <span class="badge by" style="margin-bottom:14px;display:inline-block">AXE 2</span>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div><div class="step-name">Claude 101 + AI Fluency</div><div class="step-dur">4h</div></div></div>
+          <div class="step"><div class="step-num">2</div><div><div class="step-name">Claude Cowork</div><div class="step-dur">~2h</div></div></div>
+          <div class="step"><div class="step-num">3</div><div><div class="step-name">Agent Skills + Subagents</div><div class="step-dur">2h</div></div></div>
+          <div class="step"><div class="step-num">4</div><div><div class="step-name">Building Claude API</div><div class="step-dur">8h+</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CERTIFICATION -->
+  <div id="certification" class="section">
+    <div class="cert-hero">
+      <div class="cert-badge">CERTIFICATION OFFICIELLE</div>
+      <h2>Claude Certified Architect Foundations — CCA-F</h2>
+      <p>La première certification technique officielle Anthropic. Valorise nos CVs, crédibilise nos profils auprès des clients — comme Salesforce ou Microsoft.</p>
+    </div>
+    <div class="cert-stats">
+      <div class="cert-stat"><div class="cert-stat-val">60</div><div class="cert-stat-lbl">questions</div></div>
+      <div class="cert-stat"><div class="cert-stat-val">120 min</div><div class="cert-stat-lbl">durée</div></div>
+      <div class="cert-stat"><div class="cert-stat-val">720/1000</div><div class="cert-stat-lbl">score minimum</div></div>
+      <div class="cert-stat sp"><div class="cert-stat-val">Gratuit</div><div class="cert-stat-lbl">5 000 premiers partenaires</div></div>
+      <div class="cert-stat"><div class="cert-stat-val">2 ans</div><div class="cert-stat-lbl">validité</div></div>
+      <div class="cert-stat"><div class="cert-stat-val">🏅</div><div class="cert-stat-lbl">Badge LinkedIn officiel</div></div>
+    </div>
+    <div class="cert-cols">
+      <div class="cert-block acc"><h4>Pour qui</h4><p>AI Champions AXE 2 + profils techniques, après le parcours Academy. Accès via le Claude Partner Network — gratuit, Klint est éligible.</p></div>
+      <div class="cert-block acy"><h4>Stack de certifications</h4><p>CCA-F est le premier niveau. D'autres certifications avancées sont prévues pour fin 2026 — positionnez-vous maintenant.</p></div>
+    </div>
+    <a class="cert-link" href="https://anthropic.skilljar.com/claude-certified-architect-foundations-access-request" target="_blank"><div class="cert-link-dot"></div><span class="cert-link-label">Inscription à l'examen</span><span class="cert-link-url">anthropic.skilljar.com</span></a>
+    <a class="cert-link" href="https://anthropic.skilljar.com" target="_blank"><div class="cert-link-dot"></div><span class="cert-link-label">Révisions officielles — Anthropic Academy</span><span class="cert-link-url">anthropic.skilljar.com</span></a>
+    <a class="cert-link" href="https://claudecertifiedarchitect.net" target="_blank"><div class="cert-link-dot"></div><span class="cert-link-label">Guide complet + questions pratiques (6 semaines)</span><span class="cert-link-url">claudecertifiedarchitect.net</span></a>
+  </div>
+
+  <!-- MON AVANCEMENT -->
+  <div id="avancement" class="section">
+    <div class="section-title">Mon Avancement</div>
+    <div class="section-sub">Mets à jour ton statut par cours — sauvegardé automatiquement dans SharePoint</div>
+    <div id="avancement-content"><div class="loading"><div class="spinner"></div>Chargement de ton avancement…</div></div>
+  </div>
+
+  <!-- DASHBOARD MANAGER -->
+  <div id="dashboard" class="section">
+    <div class="section-title">Dashboard — Vue Manager</div>
+    <div class="section-sub">Avancement de toute l'équipe en temps réel</div>
+    <div id="dashboard-content"><div class="loading"><div class="spinner"></div>Chargement des données…</div></div>
+  </div>
+
+  <div class="footer">Klint — Programme Anthropic Academy · Formation interne 2026</div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CONFIGURATION — REMPLACE VOTRE_CLIENT_ID
+   ═══════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  clientId:      'VOTRE_CLIENT_ID',
+  tenantId:      '461b98dc-74be-4895-bb07-cbfb07f6632a',
+  siteHostname:  'efrontech365.sharepoint.com',
+  sitePath:      '/sites/AnthropicAcademy',
+  listName:      'SuiviFormation',
+  managerEmails: ['aboussemart@klint-consulting.com']
+};
+
+/* ── Données des cours ───────────────────────────────────────── */
+const COURSES = [
+  {id:'claude-101',      name:'Claude 101',                         dur:'1–2h', axe:1, icon:'🤖', target:'tous'},
+  {id:'ai-fluency',      name:'AI Fluency: Framework & Foundations', dur:'3h',   axe:1, icon:'🧠', target:'tous'},
+  {id:'ai-capabilities', name:'AI Capabilities and Limitations',     dur:'1h',   axe:1, icon:'⚡', target:'tous'},
+  {id:'claude-cowork',   name:'Introduction to Claude Cowork',       dur:'~2h',  axe:1, icon:'💼', target:'tous'},
+  {id:'claude-code-101', name:'Claude Code 101',                     dur:'1h',   axe:1, icon:'💻', target:'devs'},
+  {id:'claude-api',      name:'Building with the Claude API',        dur:'8h+',  axe:2, icon:'🔌', target:'tech'},
+  {id:'claude-code-act', name:'Claude Code in Action',               dur:'2h',   axe:2, icon:'⚙️', target:'tech'},
+  {id:'subagents',       name:'Introduction to Subagents',           dur:'~1h',  axe:2, icon:'🤝', target:'tech'},
+  {id:'mcp-intro',       name:'Introduction to MCP',                 dur:'3h',   axe:2, icon:'🔗', target:'tech'},
+  {id:'mcp-advanced',    name:'MCP: Advanced Topics',                dur:'2h',   axe:2, icon:'🚀', target:'tech'},
+  {id:'agent-skills',    name:'Introduction to Agent Skills',        dur:'1h',   axe:2, icon:'🧩', target:'fonct'},
+];
+const STATUSES = ['À faire','En cours','Terminé','Certifié'];
+const S_CLASS  = ['s0','s1','s2','s3'];
+const S_COLOR  = ['#64748B','#F5A623','#166534','#0077A8'];
+
+/* ── État de l'app ───────────────────────────────────────────── */
+const state = { user: null, account: null, token: null, siteId: null, listId: null, myItemId: null, courseData: {}, useCase: '' };
+
+/* ── MSAL ────────────────────────────────────────────────────── */
+const msalApp = new msal.PublicClientApplication({
+  auth: { clientId: CONFIG.clientId, authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`, redirectUri: window.location.href.split('?')[0].split('#')[0] },
+  cache: { cacheLocation: 'sessionStorage' }
+});
+
+const SCOPES = ['User.Read','https://graph.microsoft.com/Sites.ReadWrite.All'];
+
+async function login() {
+  try {
+    const res = await msalApp.loginPopup({ scopes: SCOPES });
+    state.account = res.account;
+    await initApp();
+  } catch(e) { console.error('Login error', e); }
+}
+
+async function logout() {
+  await msalApp.logoutPopup({ account: state.account });
+  state.account = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+async function getToken() {
+  try {
+    const res = await msalApp.acquireTokenSilent({ scopes: SCOPES, account: state.account });
+    return res.accessToken;
+  } catch {
+    const res = await msalApp.acquireTokenPopup({ scopes: SCOPES });
+    return res.accessToken;
+  }
+}
+
+/* ── Graph API ───────────────────────────────────────────────── */
+async function graph(endpoint, method='GET', body=null) {
+  const token = await getToken();
+  const r = await fetch(`https://graph.microsoft.com/v1.0${endpoint}`, {
+    method,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+    body: body ? JSON.stringify(body) : null
+  });
+  if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error(e?.error?.message || r.statusText); }
+  return method === 'DELETE' ? null : r.json().catch(()=>null);
+}
+
+async function getSiteId() {
+  const s = await graph(`/sites/${CONFIG.siteHostname}:${CONFIG.sitePath}`);
+  return s.id;
+}
+
+async function getOrCreateList() {
+  const lists = await graph(`/sites/${state.siteId}/lists?$filter=displayName eq '${CONFIG.listName}'&$select=id,displayName`);
+  if (lists.value && lists.value.length > 0) return lists.value[0].id;
+  const newList = await graph(`/sites/${state.siteId}/lists`, 'POST', {
+    displayName: CONFIG.listName,
+    list: { template: 'genericList' },
+    columns: [
+      { name: 'UserEmail', text: {} },
+      { name: 'UserName',  text: {} },
+      { name: 'CourseData',note: {} },
+      { name: 'UseCase',   note: {} }
+    ]
+  });
+  return newList.id;
+}
+
+async function loadMyData() {
+  const email = state.user.mail || state.user.userPrincipalName;
+  const items = await graph(`/sites/${state.siteId}/lists/${state.listId}/items?$expand=fields&$filter=fields/UserEmail eq '${encodeURIComponent(email)}'&$top=1`);
+  if (items.value && items.value.length > 0) {
+    const item = items.value[0];
+    state.myItemId = item.id;
+    try { state.courseData = JSON.parse(item.fields.CourseData || '{}'); } catch { state.courseData = {}; }
+    state.useCase = item.fields.UseCase || '';
+  } else {
+    state.myItemId = null;
+    state.courseData = {};
+    state.useCase = '';
+  }
+}
+
+async function saveMyData() {
+  const email = state.user.mail || state.user.userPrincipalName;
+  const name  = state.user.displayName;
+  const payload = { fields: { UserEmail: email, UserName: name, CourseData: JSON.stringify(state.courseData), UseCase: state.useCase, Title: email } };
+  if (state.myItemId) {
+    await graph(`/sites/${state.siteId}/lists/${state.listId}/items/${state.myItemId}`, 'PATCH', payload);
+  } else {
+    const created = await graph(`/sites/${state.siteId}/lists/${state.listId}/items`, 'POST', payload);
+    state.myItemId = created.id;
+  }
+}
+
+async function loadAllData() {
+  const items = await graph(`/sites/${state.siteId}/lists/${state.listId}/items?$expand=fields&$top=999`);
+  return items.value || [];
+}
+
+/* ── UI : Mon Avancement ─────────────────────────────────────── */
+function renderAvancement() {
+  const axe1 = COURSES.filter(c => c.axe === 1);
+  const axe2 = COURSES.filter(c => c.axe === 2);
+  const done = c => ['Terminé','Certifié'].includes(state.courseData[c.id]);
+  const pct1 = Math.round(axe1.filter(done).length / axe1.length * 100);
+  const pct2 = Math.round(axe2.filter(done).length / axe2.length * 100);
+
+  const courseRows = (list) => list.map(c => {
+    const st = state.courseData[c.id] || 'À faire';
+    const si = STATUSES.indexOf(st);
+    return `<div class="status-card">
+      <div class="course-icon">${c.icon}</div>
+      <div><div class="course-name">${c.name}</div><div class="course-desc">${c.dur} · AXE ${c.axe}</div></div>
+      <select class="status-select ${S_CLASS[si]}" data-course="${c.id}" onchange="updateStatus(this)">
+        ${STATUSES.map((s,i) => `<option value="${s}" ${s===st?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('');
+
+  document.getElementById('avancement-content').innerHTML = `
+    <div class="progress-header">
+      <div class="prog-bloc">
+        <h3>AXE 1 — Consultant Augmenté</h3>
+        <div class="prog-bar-wrap"><div class="prog-bar axe1" style="width:${pct1}%"></div></div>
+        <div class="prog-pct">${pct1}%</div>
+        <div class="prog-lbl">${axe1.filter(done).length} / ${axe1.length} cours complétés</div>
+      </div>
+      <div class="prog-bloc">
+        <h3>AXE 2 — Consultant IA</h3>
+        <div class="prog-bar-wrap"><div class="prog-bar axe2" style="width:${pct2}%"></div></div>
+        <div class="prog-pct">${pct2}%</div>
+        <div class="prog-lbl">${axe2.filter(done).length} / ${axe2.length} cours complétés</div>
+      </div>
+    </div>
+    <div class="axe-label"><span>AXE 1 — Tous les collaborateurs</span></div>
+    <div class="status-cards">${courseRows(axe1)}</div>
+    <div class="axe-label a2"><span>AXE 2 — AI Champions</span></div>
+    <div class="status-cards">${courseRows(axe2)}</div>
+    <div class="usecase-block">
+      <h3>💡 Mes cas d'utilisation / REX</h3>
+      <p>Partage tes exemples concrets d'utilisation de Claude dans ton quotidien — ça aide toute l'équipe.</p>
+      <textarea class="usecase-input" id="usecase-input" placeholder="Ex: J'utilise Claude pour rédiger mes comptes-rendus de réunion...">${state.useCase}</textarea>
+    </div>
+    <div style="display:flex;align-items:center;margin-top:16px">
+      <button class="btn-save" onclick="saveProgress(this)">💾 Sauvegarder</button>
+      <span class="save-status" id="save-msg"></span>
+    </div>`;
+}
+
+function updateStatus(sel) {
+  const courseId = sel.dataset.course;
+  const val = sel.value;
+  state.courseData[courseId] = val;
+  const si = STATUSES.indexOf(val);
+  sel.className = `status-select ${S_CLASS[si]}`;
+  // Refresh progress bars only
+  const axe1 = COURSES.filter(c => c.axe === 1);
+  const axe2 = COURSES.filter(c => c.axe === 2);
+  const done = c => ['Terminé','Certifié'].includes(state.courseData[c.id]);
+  const pct1 = Math.round(axe1.filter(done).length / axe1.length * 100);
+  const pct2 = Math.round(axe2.filter(done).length / axe2.length * 100);
+  document.querySelectorAll('.prog-bar.axe1').forEach(b => b.style.width = pct1 + '%');
+  document.querySelectorAll('.prog-bar.axe2').forEach(b => b.style.width = pct2 + '%');
+  document.querySelectorAll('.prog-pct')[0].textContent = pct1 + '%';
+  document.querySelectorAll('.prog-pct')[1].textContent = pct2 + '%';
+}
+
+async function saveProgress(btn) {
+  btn.disabled = true;
+  btn.textContent = '⏳ Sauvegarde…';
+  const msg = document.getElementById('save-msg');
+  state.useCase = document.getElementById('usecase-input').value;
+  try {
+    await saveMyData();
+    msg.textContent = '✓ Sauvegardé'; msg.className = 'save-status ok';
+  } catch(e) {
+    msg.textContent = '✗ Erreur — ' + e.message; msg.className = 'save-status err';
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Sauvegarder';
+    setTimeout(() => { if(msg) msg.textContent = ''; }, 4000);
+  }
+}
+
+/* ── UI : Dashboard Manager ──────────────────────────────────── */
+async function renderDashboard() {
+  const el = document.getElementById('dashboard-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Chargement des données…</div>';
+  try {
+    const items = await loadAllData();
+    const users = items.map(item => {
+      const f = item.fields;
+      let cd = {};
+      try { cd = JSON.parse(f.CourseData || '{}'); } catch {}
+      const axe1 = COURSES.filter(c => c.axe === 1);
+      const axe2 = COURSES.filter(c => c.axe === 2);
+      const done = c => ['Terminé','Certifié'].includes(cd[c.id]);
+      return {
+        name: f.UserName || f.UserEmail,
+        email: f.UserEmail,
+        pct1: Math.round(axe1.filter(done).length / axe1.length * 100),
+        pct2: Math.round(axe2.filter(done).length / axe2.length * 100),
+        modified: new Date(item.lastModifiedDateTime).toLocaleDateString('fr-FR')
+      };
+    }).sort((a,b) => (b.pct1+b.pct2) - (a.pct1+a.pct2));
+
+    const total = users.length;
+    const axe1Avg = total ? Math.round(users.reduce((s,u) => s+u.pct1, 0)/total) : 0;
+    const axe2Avg = total ? Math.round(users.reduce((s,u) => s+u.pct2, 0)/total) : 0;
+    const certif  = users.filter(u => u.pct2 >= 80).length;
+
+    el.innerHTML = `
+      <div class="dash-stats">
+        <div class="dash-stat"><div class="dash-stat-val">${total}</div><div class="dash-stat-lbl">participants actifs</div></div>
+        <div class="dash-stat accent"><div class="dash-stat-val">${axe1Avg}%</div><div class="dash-stat-lbl">progression moy. AXE 1</div></div>
+        <div class="dash-stat yellow"><div class="dash-stat-val">${axe2Avg}%</div><div class="dash-stat-lbl">progression moy. AXE 2</div></div>
+        <div class="dash-stat"><div class="dash-stat-val">${certif}</div><div class="dash-stat-lbl">proches certification (AXE 2 &gt;80%)</div></div>
+      </div>
+      <div class="dash-table-wrap">
+        <div class="dash-table-header">
+          <h3>Détail par collaborateur</h3>
+          <a href="https://${CONFIG.siteHostname}${CONFIG.sitePath}/Lists/${CONFIG.listName}" target="_blank"><button class="btn-export">📥 Voir dans SharePoint</button></a>
+        </div>
+        <table class="dash">
+          <thead><tr>
+            <th>Collaborateur</th>
+            <th>AXE 1</th>
+            <th>AXE 2</th>
+            <th>Dernière activité</th>
+          </tr></thead>
+          <tbody>
+            ${users.map(u => `<tr>
+              <td><div style="font-weight:700;color:#1B3A6B">${u.name}</div><div style="font-size:11px;color:#94A3B8">${u.email}</div></td>
+              <td><div class="mini-bar-wrap"><div class="mini-bar c1" style="width:${u.pct1}%"></div></div><span style="font-weight:700;color:#1B3A6B">${u.pct1}%</span></td>
+              <td><div class="mini-bar-wrap"><div class="mini-bar c2" style="width:${u.pct2}%"></div></div><span style="font-weight:700;color:#1B3A6B">${u.pct2}%</span></td>
+              <td class="last-active">${u.modified}</td>
+            </tr>`).join('')}
+            ${total === 0 ? '<tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:24px">Aucune donnée encore enregistrée</td></tr>' : ''}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="loading" style="color:#DC2626">Erreur : ${e.message}</div>`;
+  }
+}
+
+/* ── Navigation ──────────────────────────────────────────────── */
+function show(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (id === 'avancement') renderAvancement();
+  if (id === 'dashboard')  renderDashboard();
+}
+
+/* ── Init ────────────────────────────────────────────────────── */
+async function initApp() {
+  const email = state.account.username;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('user-name').textContent = state.account.name || email;
+  document.getElementById('user-avatar').textContent = (state.account.name || email)[0].toUpperCase();
+
+  // Manager tab
+  if (CONFIG.managerEmails.map(e => e.toLowerCase()).includes(email.toLowerCase())) {
+    document.querySelectorAll('.manager-only').forEach(el => el.style.display = 'block');
+  }
+
+  try {
+    // Get user profile
+    state.user = await graph('/me?$select=displayName,mail,userPrincipalName');
+    // Init SharePoint
+    state.siteId = await getSiteId();
+    state.listId = await getOrCreateList();
+    // Load user data
+    await loadMyData();
+  } catch(e) {
+    console.error('Init error', e);
+  }
+}
+
+/* ── Démarrage ───────────────────────────────────────────────── */
+window.onload = async () => {
+  // Vérif config
+  if (CONFIG.clientId === 'VOTRE_CLIENT_ID') {
+    document.getElementById('setup-overlay').style.display = 'flex';
+    document.getElementById('login-screen').style.display = 'none';
+    return;
+  }
+  await msalApp.initialize();
+  // Redirect callback
+  try { await msalApp.handleRedirectPromise(); } catch {}
+  // Already logged in?
+  const accounts = msalApp.getAllAccounts();
+  if (accounts.length > 0) {
+    state.account = accounts[0];
+    await initApp();
+  }
+};
+</script>
+</body>
+</html>
