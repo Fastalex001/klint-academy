@@ -392,10 +392,10 @@
 
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   CONFIGURATION — REMPLACE VOTRE_CLIENT_ID
+   CONFIGURATION — REMPLACE 070658db-eaf6-4c93-8400-e4c0511ad6b8
    ═══════════════════════════════════════════════════════════════ */
 const CONFIG = {
-  clientId:      'VOTRE_CLIENT_ID',
+  clientId:      '070658db-eaf6-4c93-8400-e4c0511ad6b8',
   tenantId:      '461b98dc-74be-4895-bb07-cbfb07f6632a',
   siteHostname:  'efrontech365.sharepoint.com',
   sitePath:      '/sites/AnthropicAcademy',
@@ -708,7 +708,7 @@ async function initApp() {
 /* ── Démarrage ───────────────────────────────────────────────── */
 window.onload = async () => {
   // Vérif config
-  if (CONFIG.clientId === 'VOTRE_CLIENT_ID') {
+  if (CONFIG.clientId === '070658db-eaf6-4c93-8400-e4c0511ad6b8') {
     document.getElementById('setup-overlay').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
     return;
