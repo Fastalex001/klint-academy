@@ -181,8 +181,8 @@ async function runImport() {
   let done=0, errors=0;
   for (const collab of COLLABORATEURS) {
     try {
-      // Vérifie si l'entrée existe déjà
-      const existing = await graph(`/sites/${siteId}/lists/${listId}/items?$filter=fields/UserEmail eq '${encodeURIComponent(collab.email)}'&$select=id&$top=1`);
+      // Vérifie si l'entrée existe déjà (filtre sur Title qui est indexé)
+      const existing = await graph(`/sites/${siteId}/lists/${listId}/items?$filter=fields/Title eq '${encodeURIComponent(collab.email)}'&$select=id&$top=1`);
       if (existing.value && existing.value.length > 0) {
         log('info',`⏭ ${collab.name} — déjà présent, ignoré`);
         done++;
